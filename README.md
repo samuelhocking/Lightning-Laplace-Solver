@@ -1,4 +1,5 @@
-**Lightning Laplace Solver ![[LOGO]](llogo.png)** 
+![[LOGO]](llogo.png)
+**Lightning Laplace Solver** 
 
 The Lightning Laplace Solver is a Matlab code that solves the Laplace equation on a polygon or circular polygon with Dirichlet or homogeneous Neumann boundary conditions, typically in a fraction of a second. By default it has 6-digit accuracy all the way up to the corners despite the singularities there, assuming the boundary data are continuous. For most problems the computation continues to be successful if the tolerance is tightened to 8 or 10 digits.
 
