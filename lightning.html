@@ -1,0 +1,95 @@
+
+<HTML> <HEAD> <TITLE>Lightning Laplace Solve</TITLE> </HEAD>
+
+<p><br>
+
+<FONT SIZE=6><b>Lightning Laplace Solver
+<IMG SRC="llogo.png"
+WIDTH=90 HEIGHT=90 ALIGN=top ALT="[LOGO]"></a>
+</b></FONT SIZE>
+
+<p>
+
+The Lightning Laplace Solver is a Matlab code that
+solves the Laplace equation on a polygon or circular
+polygon with Dirichlet or homogeneous Neumann
+boundary conditions, typically in a fraction of a second.
+By default it has 6-digit accuracy
+all the way up to the corners despite the singularities
+there, assuming the boundary data are continuous.
+For most problems the computation
+continues to be successful if
+the tolerance is tightened to 8 or 10 digits.
+<p>
+
+To learn how to run the code, type
+<tt>help laplace</tt> and note the examples
+displayed there.  Also execute <tt>examples</tt>.
+<p>
+
+<tt>confmap</tt> is a companion to <tt>laplace</tt>
+for computing conformal maps of simply-connected domains.
+Type <tt>help confmap</tt> for information and examples.
+To use <tt>confmap</tt>, you must have
+<a href="https://www.chebfun.org">Chebfun</a> in your Matlab path.
+<p>
+
+&nbsp;&nbsp;&nbsp;<a href="laplace.m">laplace.m</a>
+<FONT SIZE="-1">(version 6, March 2020)</FONT><br>
+
+&nbsp;&nbsp;&nbsp;<a href="examples.m">examples.m</a><br>
+
+&nbsp;&nbsp;&nbsp;<a href="confmap.m">confmap.m</a><br>
+
+<p>
+
+<tt>laplace</tt> and <tt>confmap</tt> get their speed and accuracy from the
+representation of harmonic and analytic functions in terms of rational
+function with poles exponentially clustered near the corners.
+(The mathematics is related to the reason lightning strikes at
+sharp corners.)
+For details of the algorithms see
+<a href="https://people.maths.ox.ac.uk/trefethen/laplaceSINUM.pdf">
+Solving Laplace problems with corner
+singularities via rational functions</a>,
+<i>SIAM J. Numer. Anal.</i> 57 (2019), pp. 2074-2094,
+and
+<a href="https://people.maths.ox.ac.uk/trefethen/trefethen_cmft.pdf">
+Numerical conformal mapping with rational functions</a>,
+<i>Comp. Meth. Funct. Th.,</i> to appear.
+<p>
+
+<tt>laplace</tt> is restricted to polygons and circular polygons,
+but the algorithm is also 
+effective for exterior or unbounded domains, multiply connected
+domains, and domains with more general boundary arcs.
+Later versions of
+the code will allow for such variations, as well as extensions to
+biharmonic and Helmholtz problems.  See
+<a href="https://people.maths.ox.ac.uk/trefethen/pnas.pdf">
+New Laplace and Helmholtz solvers</a>,
+<i>Proc. Nat. Acad. Sci. USA, 116 (2019), 10223.</i>
+<p>
+
+Output from <tt>laplace('L');</tt>:
+<br>
+<IMG SRC="L.png"
+WIDTH=480 HEIGHT=360 ALIGN=top ALT="[L]"></a>
+
+<p>
+Output from <tt>confmap('iso');</tt>:
+
+<br><p>
+<IMG SRC="iso.png"
+WIDTH=440 HEIGHT=330 ALIGN=top ALT="[iso]"></a>
+
+<br>
+
+Please send suggestions to <tt>trefethen@maths.ox.ac.uk</tt>.
+
+<p>
+<p><a href="index.html"><FONT SIZE=2
+COLOR=#CC0000>Return to Trefethen homepage</FONT></a>
+
+</HTML>
+
