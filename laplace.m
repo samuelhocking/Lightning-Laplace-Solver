@@ -1,4 +1,4 @@
-function [u, maxerr, f, Z, Zplot, A] = laplace(P, varargin) 
+function [u, maxerr, f, Z, Zplot, A, psi] = laplace(P, varargin) 
 %LAPLACE  Lightning Laplace solver.
 %         U = LAPLACE(P,G) solves the Laplace equation with Dirichlet or
 %         homogeneous Neumann boundary data on the simply-connected region
@@ -125,18 +125,29 @@ for stepno = 1:maxstepno
       j = mod(k-2,nw)+1;                            % index of last corner
       tt{j} = [tt{j} dw(j)-dvec(dvec<dw(j))];       % likewise in other direction
    end
+   nn = 0;                                          % number of Neumann bcs
+   III = {};                                        % empty cell array of neumann group indices
    for k = 1:nw
       tt{k} = sort(tt{k}(:));
-      tk = tt{k}; pk = pt{k};                       % abbrevations 
-      Z = [Z; pk(tk)];                              % sample pts on side k
-      G = [G; g{k}(pk(tk))];                        % boundary data at these pts
+      tk = tt{k}; pk = pt{k};                       % abbrevations
+      zz = pk(tk);                                  % sample pts on side k 
+      gg = g{k}(pk(tk));                            % boundary data at these pts
+      if all(isnan(gg))
+         nn = nn + 1;                               % if all boundary data is nan, neumann
+         Z_len = length(Z);                         % number of previous bdry points
+         zz_len = length(zz);                       % number of current bdry points
+         III{nn} = Z_len+1:Z_len+zz_len;            % add current bdry point indices to cell array
+      end
+      Z = [Z; zz];                                 
+      G = [G; gg];                        
       h = 1e-4;                                     % 4-pt trapezoidal rule
       T = [T; (pk(tk+h)-1i*pk(tk+1i*h) ...
              - pk(tk-h)+1i*pk(tk-1i*h))/(4*h);];    % unnormalized tangent vectors
    end
    T = T./abs(T);                                   % normalize tangent vectors
    II = isnan(G);                                   % Neumann indices
-   if any(II), arnoldi = 0; end
+   % SH : remove check to turn off Arnoldi for Neumann BCs
+   % if any(II), arnoldi = 0; end
   
    % Solve the Laplace problem
    n = 4*stepno;                                    % degree of polynomial term
@@ -158,25 +169,46 @@ for stepno = 1:maxstepno
    else                                             % no-Arnoldi option
       Q = ((Z-wc)/scl).^(0:n);                      % (for educational purposes)
    end
+   % SH : this is just the Runge (polynomial) part of the problem
    A = [real(Q) imag(Q(:,2:n+1))];                  % matrix for least-sq
-   if any(II)                                       % Neumann BCs, if any
-      tmp = (0:n).*((Z(II)-wc)/scl).^[0 0:n-1] ...
-                 .*T(II)/scl;
-      A(II,:) = [imag(tmp) -real(tmp(:,2:n+1))];
-   end
+   %-<SUPPRESS>--------------------------------------------------------------------------
+   % if any(II)                                       % Neumann BCs, if any
+   %    tmp = (0:n).*((Z(II)-wc)/scl).^[0 0:n-1] ...
+   %               .*T(II)/scl;
+   %    A(II,:) = [imag(tmp) -real(tmp(:,2:n+1))];
+   % end
+   %-</SUPPRESS>--------------------------------------------------------------------------
    % Dirichlet row entry pairs have the form Re (u+iv)*(a-ib) = [u v][a b]' = g
    % Neumann row entry pairs have the form Im (U+iV)*(a-ib) = [V -U][a b]' = 0
    % where U+iV = (u+iv)/(unit vector T in tangent direction)
    % and now u and v correspond not to d/(Z-pol) but to -d/(Z-pol)^2
    if Np > 0                                         % g linear => no poles
-      A = [A real(d./(Z-pol)) imag(d./(Z-pol))];     % columns with poles
-      if any(II)                                     % Neumann BCs, if any
-         JJ = 2*n+1 + (1:2*Np);                      % column indices for poles
-         A(II,1) = 0;
-         tmp = -(d./(Z(II)-pol).^2).*T(II);
-         A(II,JJ) = [imag(tmp) -real(tmp)];
+   % SH : tacking on columns corresponding to the Newman (rational) part
+      QQ = d./(Z-pol);                                   % partial fractions part of A
+      A = [A real(QQ) imag(QQ)];     % columns with poles
+      %-<SUPPRESS>-----------------------------------------------------------------------
+      % if any(II)                                     % Neumann BCs, if any
+      %    JJ = 2*n+1 + (1:2*Np);                      % column indices for poles
+      %    A(II,1) = 0;
+      %    tmp = -(d./(Z(II)-pol).^2).*T(II);
+      %    A(II,JJ) = [imag(tmp) -real(tmp)];
+      % end
+      %-</SUPPRESS>----------------------------------------------------------------------
+   end
+   %-<ADD>--------------------------------------------------------------------------
+   if any(II)
+      QQ = d./(Z-pol);
+      id = eye(nn,M);
+      A = [A zeros(size(A,1),nn)];                  % add zero columns
+      % SH : need to do
+      for k = 1:nn
+         ii = III{k};
+         m = length(ii);
+      %     check the second blocks
+         A(ii,:) = [imag(Q(ii,:)) -real(Q(ii,2:n+1)) imag(QQ(ii,:)) -real(QQ(ii,:)) -1*ones(m,1) .* id(:,k)'];
       end
    end
+   %-</ADD>-------------------------------------------------------------------------
    J = [zeros(1,2*n+1) J J];                         % corner for each col
    N = size(A,2);                                    % no. of cols = 2n+1+2Np
    Kj = zeros(M,1);
@@ -189,11 +221,24 @@ for stepno = 1:maxstepno
    else
       wt = ones(M,1);
    end
+   % SH : MxM with sqrt(wt) vector on diagonal (for row weighting)
    W = spdiags(sqrt(wt),0,M,M);                      % weighting for case 'rel'
    Gn = G; Gn(II) = 0;                               % set Neumann vals to 0
-   c = (W*A)\(W*Gn);                                 % least-squares solution
+   % c = (W*A)\(W*Gn);                                 % least-squares solution
+   c = (A)\(Gn);                                 % least-squares solution
+   % SH : checked
+   % SH : this works for Np=0 and nn=0
    cc = [c(1); c(2:n+1)-1i*c(n+2:2*n+1)              % complex coeffs for f
-         c(2*n+2:2*n+Np+1)-1i*c(2*n+Np+2:end)];
+         c(2*n+2:2*n+Np+1)-1i*c(2*n+Np+2:2*n+2*Np+1)];
+   if any(II)
+      psi = c(2*n+2*Np+2:end);         % unpack the constant imaginary values on Neumann BCs
+   else
+      psi = NaN;
+   end
+   %-</OLD>-------------------------------------------------------------------------         
+   % cc = [c(1); c(2:n+1)-1i*c(n+2:2*n+1)              % complex coeffs for f
+   %       c(2*n+2:2*n+Np+1)-1i*c(2*n+Np+2:end)];
+   %-</OLD>-------------------------------------------------------------------------         
    f = @(z) reshape(fzeval(z(:),wc,...               % vector and matrix inputs
               cc,H,pol,d,arnoldi,scl,n),size(z));    % to u and f both allowed
    u = @(z) real(f(z));
@@ -298,6 +343,7 @@ end
 %% Contour plot of solution
 if plots
    uu = u(zz); uu(~inpolygonc(zz,ww)) = nan;
+   disp(size(uu))
    axes(PO,[.52 .34 .47 .56]), levels = linspace(min(G),max(G),20);
    contour(sx,sy,uu,levels,LW,.5), colorbar, axis equal, hold on
    plot(ww,'-k',LW,1), plot(pol,'.r',MS,6)
