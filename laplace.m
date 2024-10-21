@@ -1,4 +1,4 @@
-function [u, maxerr, f, Z, Zplot, A, psi] = laplace(P, varargin) 
+function [u, maxerr, f, Z, Zplot, A, Gn, c, psi, II, III] = laplace(P, varargin) 
 %LAPLACE  Lightning Laplace solver.
 %         U = LAPLACE(P,G) solves the Laplace equation with Dirichlet or
 %         homogeneous Neumann boundary data on the simply-connected region
@@ -170,7 +170,7 @@ for stepno = 1:maxstepno
       Q = ((Z-wc)/scl).^(0:n);                      % (for educational purposes)
    end
    % SH : this is just the Runge (polynomial) part of the problem
-   A = [real(Q) imag(Q(:,2:n+1))];                  % matrix for least-sq
+   A = [real(Q) -imag(Q(:,2:n+1))];                  % matrix for least-sq
    %-<SUPPRESS>--------------------------------------------------------------------------
    % if any(II)                                       % Neumann BCs, if any
    %    tmp = (0:n).*((Z(II)-wc)/scl).^[0 0:n-1] ...
@@ -185,7 +185,7 @@ for stepno = 1:maxstepno
    if Np > 0                                         % g linear => no poles
    % SH : tacking on columns corresponding to the Newman (rational) part
       QQ = d./(Z-pol);                                   % partial fractions part of A
-      A = [A real(QQ) imag(QQ)];     % columns with poles
+      A = [A real(QQ) -imag(QQ)];     % columns with poles
       %-<SUPPRESS>-----------------------------------------------------------------------
       % if any(II)                                     % Neumann BCs, if any
       %    JJ = 2*n+1 + (1:2*Np);                      % column indices for poles
@@ -205,7 +205,7 @@ for stepno = 1:maxstepno
          ii = III{k};
          m = length(ii);
       %     check the second blocks
-         A(ii,:) = [imag(Q(ii,:)) -real(Q(ii,2:n+1)) imag(QQ(ii,:)) -real(QQ(ii,:)) -1*ones(m,1) .* id(:,k)'];
+         A(ii,:) = [imag(Q(ii,:)) real(Q(ii,2:n+1)) imag(QQ(ii,:)) real(QQ(ii,:)) -1*ones(m,1) .* id(:,k)'];
       end
    end
    %-</ADD>-------------------------------------------------------------------------
@@ -226,19 +226,19 @@ for stepno = 1:maxstepno
    Gn = G; Gn(II) = 0;                               % set Neumann vals to 0
    % c = (W*A)\(W*Gn);                                 % least-squares solution
    c = (A)\(Gn);                                 % least-squares solution
+   %-</OLD>-------------------------------------------------------------------------         
+   % cc = [c(1); c(2:n+1)-1i*c(n+2:2*n+1)              % complex coeffs for f
+   %       c(2*n+2:2*n+Np+1)-1i*c(2*n+Np+2:end)];
+   %-</OLD>-------------------------------------------------------------------------         
    % SH : checked
    % SH : this works for Np=0 and nn=0
-   cc = [c(1); c(2:n+1)-1i*c(n+2:2*n+1)              % complex coeffs for f
-         c(2*n+2:2*n+Np+1)-1i*c(2*n+Np+2:2*n+2*Np+1)];
+   cc = [c(1); c(2:n+1)+1i*c(n+2:2*n+1)              % complex coeffs for f
+         c(2*n+2:2*n+Np+1)+1i*c(2*n+Np+2:2*n+2*Np+1)];
    if any(II)
       psi = c(2*n+2*Np+2:end);         % unpack the constant imaginary values on Neumann BCs
    else
       psi = NaN;
    end
-   %-</OLD>-------------------------------------------------------------------------         
-   % cc = [c(1); c(2:n+1)-1i*c(n+2:2*n+1)              % complex coeffs for f
-   %       c(2*n+2:2*n+Np+1)-1i*c(2*n+Np+2:end)];
-   %-</OLD>-------------------------------------------------------------------------         
    f = @(z) reshape(fzeval(z(:),wc,...               % vector and matrix inputs
               cc,H,pol,d,arnoldi,scl,n),size(z));    % to u and f both allowed
    u = @(z) real(f(z));
@@ -273,11 +273,11 @@ for stepno = 1:maxstepno
    errvec = [errvec err]; Nvec = [Nvec; N];
    if err < .5*tol, break, end                        % convergence success
    if err < err0                                      % save the best so far
-      u0 = u; f0 = f; Z0 = Z; G0 = G; A0 = A; M0 = M;
+      u0 = u; f0 = f; Z0 = Z; G0 = G; Gn0 = Gn; A0 = A; c0 = c; M0 = M; II0 = II; III0 = III;
       N0 = N; err0 = err; pol0 = pol; wt0 = wt;
    end
    if (N > 1200) | (stepno == maxstepno) | (Np >= polmax*nw)  % failure
-      u = u0; f = f0; Z = Z0; G = G0; A = A0; M = M0;
+      u = u0; f = f0; Z = Z0; G = G0; Gn = Gn0; A = A0; c = c0; M = M0; II = II0; III = III0;
       N = N0; err = err0; pol = pol0; wt = wt0;
       warning('LAPLACE failure.  Loosen tolerance or add corners?')
       break
